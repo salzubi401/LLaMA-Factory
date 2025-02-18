@@ -16,6 +16,7 @@ import os
 import random
 import subprocess
 import sys
+import json
 from enum import Enum, unique
 
 from . import launcher
@@ -71,6 +72,7 @@ class Command(str, Enum):
     WEBUI = "webui"
     VER = "version"
     HELP = "help"
+    SWEEP = "sweep"
 
 
 def main():
@@ -118,8 +120,39 @@ def main():
         print(WELCOME)
     elif command == Command.HELP:
         print(USAGE)
+    elif command == Command.SWEEP:
+        run_sweep()
     else:
         raise NotImplementedError(f"Unknown command: {command}.")
+
+
+def run_sweep():
+    """Handle the sweep command from CLI."""
+    if len(sys.argv) < 2:
+        logger.error("Please provide a sweep configuration file.")
+        sys.exit(1)
+        
+    sweep_config_path = sys.argv[1]
+    if not os.path.exists(sweep_config_path):
+        logger.error(f"Sweep configuration file not found: {sweep_config_path}")
+        sys.exit(1)
+
+    # Get base config if provided
+    base_config = None
+    if len(sys.argv) > 2:
+        base_config_path = sys.argv[2]
+        if os.path.exists(base_config_path):
+            with open(base_config_path, "r") as f:
+                base_config = json.load(f)
+    
+    # Run the sweep
+    from .train.sweep import run_sweep as run_wandb_sweep
+    run_wandb_sweep(
+        sweep_config_path=sweep_config_path,
+        base_config=base_config,
+        project=os.getenv("WANDB_PROJECT", "llamafactory"),
+        entity=os.getenv("WANDB_ENTITY", None)
+    )
 
 
 if __name__ == "__main__":
